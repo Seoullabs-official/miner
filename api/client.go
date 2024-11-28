@@ -6,13 +6,11 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/Seoullabs-official/miner/api/work"
 )
 
-type WorkResponse struct {
-	// WorkResponse 구조체 정의
-}
-
-func GetWork(domain string) (*WorkResponse, error) {
+func GetWork(domain string) (*work.WorkResponse, error) {
 	url := fmt.Sprintf("%s/getwork", domain)
 	resp, err := http.Get(url)
 	if err != nil {
@@ -20,7 +18,7 @@ func GetWork(domain string) (*WorkResponse, error) {
 	}
 	defer resp.Body.Close()
 
-	var work WorkResponse
+	var work work.WorkResponse
 	if err := json.NewDecoder(resp.Body).Decode(&work); err != nil {
 		return nil, fmt.Errorf("failed to decode work response: %w", err)
 	}
@@ -28,10 +26,13 @@ func GetWork(domain string) (*WorkResponse, error) {
 	return &work, nil
 }
 
-func SubmitResult(domain, nonce string, work *WorkResponse) error {
+func SubmitResult(domain, nonce string, work *work.WorkResponse) error {
 	url := fmt.Sprintf("%s/completework", domain)
 	data := map[string]interface{}{
-		"nonce": nonce,
+		"nonce":     nonce,
+		"timestamp": "",
+		"height":    "",
+		"blockhash": "",
 		// 추가 데이터
 	}
 
