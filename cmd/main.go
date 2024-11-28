@@ -9,7 +9,7 @@ import (
 
 func main() {
 	// 설정 파일 로드
-	cfg, err := config.LoadConfig("config.json")
+	cfg, err := config.LoadConfig("../config/config.json")
 	if err != nil {
 		log.Fatalf("Error loading config: %v", err)
 	}
