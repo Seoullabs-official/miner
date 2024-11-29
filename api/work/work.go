@@ -1,5 +1,6 @@
 package work
 
+type HexBytes []byte
 type WorkResponse struct {
 	Timestamp       int64  `json:"timestamp"`
 	Hash            string `json:"hash"`

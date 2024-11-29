@@ -1,10 +1,14 @@
 package mining
 
 import (
+	"context"
+	"fmt"
 	"log"
+	"time"
 
 	"github.com/Seoullabs-official/miner/api"
 	"github.com/Seoullabs-official/miner/config"
+	"github.com/Seoullabs-official/miner/core"
 	utils "github.com/Seoullabs-official/miner/util"
 )
 
@@ -20,29 +24,28 @@ func Start(cfg *config.Config) {
 			continue
 		}
 
-		log.Printf("Work response: %+v\n", work)
-
-		// 난이도 계산
-		// hashLimit, err := core.CalculateHashLimit(work.Data.ExpectedBlock.Difficulty)
-		// hashLimit, err := core.CalculateHashLimit("nil")
+		// 난이도 계산 끝나면 그 기준 timestamp ,blockhash , validator , miner 넣어주기
+		hashLimit, err := core.CalculateHashLimit(work.Difficulty)
 		if err != nil {
 			log.Printf("Error calculating hash limit: %v\n", err)
 			continue
 		}
 
-		// ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
-		// // apiData, err := core.StartWorkers(ctx, hashLimit, work.Data.ExpectedBlock.PreviousBlockHash, &loopCount, cancelFunc)
-		// apiData, err := core.StartWorkers(ctx, hashLimit, "nil", &loopCount, cancelFunc)
-		// cancelFunc() // 타임아웃 후 컨텍스트 취소
-		// if err != nil || apiData == "" {
-		// 	log.Println("No valid hash found within the time limit")
-		// 	continue
-		// }
+		ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
 
-		// // 결과 전송
-		// err = api.SubmitResult(cfg.Domain, apiData, work)
-		// if err != nil {
-		// 	log.Printf("Failed to submit result: %v\n", err)
-		// }
+		result, err := core.StartWorkers(ctx, hashLimit, *work, &loopCount, cancelFunc, cfg.TargetMiner, cfg.Validator)
+		cancelFunc()
+		if err != nil || result.Nonce == "" {
+			log.Println("No valid hash found within the time limit")
+			continue
+		}
+
+		fmt.Println(result, "3ee")
+		// // // 결과 전송
+		err = api.SubmitResult(cfg.Domain, &result)
+		if err != nil {
+			log.Printf("Failed to submit result: %v\n", err)
+		}
 	}
+
 }

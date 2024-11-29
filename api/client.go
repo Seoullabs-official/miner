@@ -4,10 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log"
 	"net/http"
 	"time"
 
 	"github.com/Seoullabs-official/miner/api/work"
+	"github.com/Seoullabs-official/miner/core"
 )
 
 func GetWork(domain string) (*work.WorkResponse, error) {
@@ -26,14 +29,15 @@ func GetWork(domain string) (*work.WorkResponse, error) {
 	return &work, nil
 }
 
-func SubmitResult(domain, nonce string, work *work.WorkResponse) error {
+func SubmitResult(domain string, miningResult *core.MiningResult) error {
 	url := fmt.Sprintf("%s/completework", domain)
 	data := map[string]interface{}{
-		"nonce":     nonce,
-		"timestamp": "",
-		"height":    "",
-		"blockhash": "",
-		// 추가 데이터
+		"nonce":     work.HexBytes(miningResult.Nonce), // HexBytes로 변환
+		"timestamp": miningResult.Timestamp,
+		"height":    miningResult.Height,
+		"blockhash": work.HexBytes(miningResult.Hash),      // HexBytes로 변환
+		"validator": work.HexBytes(miningResult.Validator), // HexBytes로 변환
+		"miner":     work.HexBytes(miningResult.Miner),     // HexBytes로 변환
 	}
 
 	jsonData, err := json.Marshal(data)
@@ -41,15 +45,20 @@ func SubmitResult(domain, nonce string, work *work.WorkResponse) error {
 		return fmt.Errorf("failed to marshal JSON: %w", err)
 	}
 
-	client := &http.Client{Timeout: time.Second * 10}
+	// 디버깅: JSON 출력
+	log.Printf("Submitting JSON: %s", string(jsonData))
+
+	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return fmt.Errorf("failed to send result: %w", err)
 	}
 	defer resp.Body.Close()
 
+	// 서버 응답 디버깅
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("server returned non-OK status: %d", resp.StatusCode)
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("server returned non-OK status: %d, response: %s", resp.StatusCode, string(body))
 	}
 
 	return nil
