@@ -32,12 +32,12 @@ func GetWork(domain string) (*work.WorkResponse, error) {
 func SubmitResult(domain string, miningResult *core.MiningResult) error {
 	url := fmt.Sprintf("%s/completework", domain)
 	data := map[string]interface{}{
-		"nonce":     work.HexBytes(miningResult.Nonce), // HexBytes로 변환
+		"nonce":     miningResult.Nonce, // HexBytes로 변환
 		"timestamp": miningResult.Timestamp,
 		"height":    miningResult.Height,
-		"blockhash": work.HexBytes(miningResult.Hash),      // HexBytes로 변환
-		"validator": work.HexBytes(miningResult.Validator), // HexBytes로 변환
-		"miner":     work.HexBytes(miningResult.Miner),     // HexBytes로 변환
+		"blockhash": miningResult.Hash,      // HexBytes로 변환
+		"validator": miningResult.Validator, // HexBytes로 변환
+		"miner":     miningResult.Miner,     // HexBytes로 변환
 	}
 
 	jsonData, err := json.Marshal(data)
@@ -51,6 +51,8 @@ func SubmitResult(domain string, miningResult *core.MiningResult) error {
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
+		log.Printf("JSON unmarshal error: %v", err) // 추가된 로그
+
 		return fmt.Errorf("failed to send result: %w", err)
 	}
 	defer resp.Body.Close()

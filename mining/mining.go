@@ -2,7 +2,6 @@ package mining
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"time"
 
@@ -40,7 +39,8 @@ func Start(cfg *config.Config) {
 			continue
 		}
 
-		fmt.Println(result, "3ee")
+		log.Printf("resuult : %v\n", &result)
+
 		// // // 결과 전송
 		err = api.SubmitResult(cfg.Domain, &result)
 		if err != nil {

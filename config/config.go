@@ -9,7 +9,7 @@ import (
 type Config struct {
 	Domain      string `json:"domain"`
 	TargetMiner string `json:"targetMiner"`
-	Validator   string `json:"targetValidator`
+	Validator   string `json:"targetValidator"`
 }
 
 func LoadConfig(filename string) (*Config, error) {

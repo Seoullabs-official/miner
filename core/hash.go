@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -23,6 +24,14 @@ func GenerateRandomNonce() string {
 	// SHA-256 해시를 계산
 	hash := sha256.Sum256(randomBytes)
 	return hex.EncodeToString(hash[:])
+}
+func DecodeToString(hash string) string {
+	decoded, err := base64.StdEncoding.DecodeString(hash)
+	if err != nil {
+		log.Printf("Error decoding Base64: %v", err)
+		return ""
+	}
+	return hex.EncodeToString(decoded)
 }
 func ToJSONString(v interface{}) (string, error) {
 	if v == nil {

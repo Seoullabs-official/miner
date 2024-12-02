@@ -2,7 +2,6 @@ package core
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"log"
 	"runtime"
@@ -23,7 +22,7 @@ type MiningResult struct {
 }
 
 func StartWorkers(ctx context.Context, hashLimit string, curBlock work.WorkResponse, loopCount *uint64, cancelFunc context.CancelFunc,
-	targetValidator, targetMiner string) (MiningResult, error) {
+	targetMiner string, targetValidator string) (MiningResult, error) {
 
 	numThreads := runtime.NumCPU()
 	results := make(chan MiningResult, numThreads)
@@ -55,7 +54,7 @@ func StartWorkers(ctx context.Context, hashLimit string, curBlock work.WorkRespo
 							Nonce:     nonce,
 							Timestamp: timestamp,
 							Height:    curBlock.Height + 1,
-							Hash:      hex.EncodeToString(hashBytes),
+							Hash:      hash,
 							Validator: targetValidator,
 							Miner:     targetMiner,
 						}
