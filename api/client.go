@@ -38,6 +38,7 @@ func SubmitResult(domain string, miningResult *core.MiningResult) error {
 		"blockhash": miningResult.Hash,      // HexBytes로 변환
 		"validator": miningResult.Validator, // HexBytes로 변환
 		"miner":     miningResult.Miner,     // HexBytes로 변환
+		"prevHash":  miningResult.PrevHash,
 	}
 
 	jsonData, err := json.Marshal(data)

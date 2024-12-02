@@ -19,6 +19,7 @@ type MiningResult struct {
 	Height    int64
 	Validator string
 	Miner     string
+	PrevHash  string
 }
 
 func StartWorkers(ctx context.Context, hashLimit string, curBlock work.WorkResponse, loopCount *uint64, cancelFunc context.CancelFunc,
@@ -49,15 +50,18 @@ func StartWorkers(ctx context.Context, hashLimit string, curBlock work.WorkRespo
 							log.Println("Error: FindNonceByReturnForHash returned nil")
 							continue
 						}
+						fmt.Println("prevHashhhhhh", curBlock.PrevHash)
 						// 결과 생성 및 전송
 						result := MiningResult{
 							Nonce:     nonce,
 							Timestamp: timestamp,
 							Height:    curBlock.Height + 1,
-							Hash:      hash,
+							PrevHash:  curBlock.Hash,
 							Validator: targetValidator,
 							Miner:     targetMiner,
+							Hash:      hash,
 						}
+						fmt.Println("prevHashhhhhh", result)
 
 						results <- result
 
