@@ -1,5 +1,4 @@
 {
   "targetMiner": "0x25752A3bD667E5a86cF297E74027503d48054442",
-  "domain": "http://localhost:8775",
-  "targetValidator": "1"
+  "domain": "http://localhost:8775"
 }

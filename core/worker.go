@@ -2,11 +2,10 @@ package core
 
 import (
 	"context"
-	"fmt"
+	"encoding/hex"
 	"log"
 	"runtime"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/Seoullabs-official/miner/api/work"
@@ -22,11 +21,12 @@ type MiningResult struct {
 	PrevHash  string
 }
 
-func StartWorkers(ctx context.Context, hashLimit string, curBlock work.WorkResponse, loopCount *uint64, cancelFunc context.CancelFunc,
-	targetMiner string, targetValidator string) (MiningResult, error) {
-
+func StartWorkers(ctx context.Context, hashLimit string, curBlock work.WorkResponse, loopCount *uint64, cancelFunc context.CancelFunc) ([]byte, int64) {
 	numThreads := runtime.NumCPU()
-	results := make(chan MiningResult, numThreads)
+	results := make(chan struct {
+		Nonce     []byte
+		Timestamp int64
+	}, numThreads)
 	done := make(chan struct{})
 	var once sync.Once
 
@@ -36,39 +36,32 @@ func StartWorkers(ctx context.Context, hashLimit string, curBlock work.WorkRespo
 			for {
 				select {
 				case <-done:
-					return // 다른 고루틴에서 작업 완료 신호를 받으면 종료
+					return // 작업 완료 신호를 받으면 종료
 				default:
 					// 랜덤 nonce 생성 및 해시 계산
 					nonce := GenerateRandomNonce()
 					hash := CalculateHash(curBlock, nonce)
 
+					nonceBytes, err := hex.DecodeString(nonce)
+					if err != nil {
+						log.Panic(err)
+					}
+
 					if hashLimit >= hash {
 						timestamp := time.Now().Unix()
 
-						hashBytes := FindNonceByReturnForHash(work.HexBytes(nonce), timestamp)
-						if hashBytes == nil {
-							log.Println("Error: FindNonceByReturnForHash returned nil")
-							continue
-						}
-						fmt.Println("prevHashhhhhh", curBlock.PrevHash)
-						// 결과 생성 및 전송
-						result := MiningResult{
-							Nonce:     nonce,
+						// 결과 채널로 전송
+						results <- struct {
+							Nonce     []byte
+							Timestamp int64
+						}{
+							Nonce:     nonceBytes,
 							Timestamp: timestamp,
-							Height:    curBlock.Height + 1,
-							PrevHash:  curBlock.Hash,
-							Validator: targetValidator,
-							Miner:     targetMiner,
-							Hash:      hash,
 						}
-						fmt.Println("prevHashhhhhh", result)
-
-						results <- result
 
 						once.Do(func() { close(done) })
 						return
 					}
-					atomic.AddUint64(loopCount, 1)
 				}
 			}
 		}(i)
@@ -77,9 +70,9 @@ func StartWorkers(ctx context.Context, hashLimit string, curBlock work.WorkRespo
 	// 결과 수신 또는 타임아웃
 	select {
 	case result := <-results:
-		return result, nil
+		return result.Nonce, result.Timestamp
 	case <-ctx.Done():
 		log.Println("Context timed out before finding a valid hash")
-		return MiningResult{}, fmt.Errorf("no valid result found within the time limit")
+		return nil, 0
 	}
 }
