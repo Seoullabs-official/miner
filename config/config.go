@@ -9,6 +9,7 @@ import (
 type Config struct {
 	Domain      string `json:"domain"`
 	TargetMiner string `json:"targetMiner"`
+	Port        string `json:"port"`
 }
 
 func LoadConfig(filename string) (*Config, error) {

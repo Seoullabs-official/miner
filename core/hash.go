@@ -8,7 +8,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"math/big"
@@ -69,26 +68,19 @@ func FindNonceByReturnForHash(nonce work.HexBytes, timestamp int64) []byte {
 	return hash[:]
 }
 
-func CalculateHashLimit(difficulty string) (string, error) {
+func CalculateHashLimit(difficulty *big.Int) (string, error) {
 	// 문자열을 big.Int로 변환
-	diff := new(big.Int)
-	if _, ok := diff.SetString(difficulty, 10); !ok {
-		return "", errors.New("invalid difficulty format")
-	}
+	diff := difficulty
 
-	// 2^256 계산
-	maxHash := new(big.Int).Exp(big.NewInt(2), big.NewInt(256), nil)
+	a := new(big.Int).Exp(big.NewInt(2), big.NewInt(256), nil)
 
 	// 난이도 값 검증 (0 또는 음수 불가)
 	if diff.Cmp(big.NewInt(1)) < 0 {
-		return "", errors.New("difficulty must be greater than 0")
+		return "", fmt.Errorf("invalid diff value")
 	}
 
-	// 2^256 / difficulty 계산
-	limit := new(big.Int).Div(maxHash, diff)
-
-	// 결과를 16진수 문자열로 변환하고 64자리로 패딩
-	hexResult := limit.Text(16)
+	result := new(big.Int).Div(a, diff)
+	hexResult := result.Text(16)
 	paddedHexResult := fmt.Sprintf("%064s", hexResult)
 
 	return paddedHexResult, nil

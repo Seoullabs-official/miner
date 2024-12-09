@@ -13,23 +13,38 @@ import (
 	"github.com/Seoullabs-official/miner/core"
 )
 
-func GetWork(domain string) (*work.WorkResponse, error) {
-	url := fmt.Sprintf("%s/getwork", domain)
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch work: %w", err)
-	}
-	defer resp.Body.Close()
-
-	var work work.WorkResponse
-	if err := json.NewDecoder(resp.Body).Decode(&work); err != nil {
-		return nil, fmt.Errorf("failed to decode work response: %w", err)
-	}
-
-	return &work, nil
+type API struct {
+	InCommingBlock chan *work.WorkResponse // 공개 필드로 변경
 }
 
-func SubmitResult(domain string, miningResult *core.MiningResult) error {
+func (api *API) HandleWork() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		// 요청 본문 출력
+		body, _ := io.ReadAll(r.Body)
+		log.Printf("Received body: %s", string(body))
+
+		// JSON 디코딩
+		var request work.WorkResponse
+		if err := json.Unmarshal(body, &request); err != nil {
+			log.Printf("Failed to decode JSON: %v", err)
+			http.Error(w, "Bad request: invalid JSON", http.StatusBadRequest)
+			return
+		}
+
+		// 작업 요청을 채널로 전달
+		api.InCommingBlock <- &request
+
+		// 응답 반환
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Work received"))
+	}
+}
+func (api *API) SubmitResult(domain string, miningResult *core.MiningResult) error {
 	url := fmt.Sprintf("%s/completework", domain)
 	data := map[string]interface{}{
 		"nonce":     miningResult.Nonce, // HexBytes로 변환
