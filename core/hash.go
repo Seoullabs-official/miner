@@ -2,28 +2,19 @@ package core
 
 import (
 	"bytes"
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"log"
 	"math/big"
 	"time"
 
 	"github.com/Seoullabs-official/miner/api/work"
+	"github.com/Seoullabs-official/miner/block"
 )
 
-func GenerateRandomNonce() string {
-	randomBytes := make([]byte, 8)
-	rand.Read(randomBytes)
-
-	// SHA-256 해시를 계산
-	hash := sha256.Sum256(randomBytes)
-	return hex.EncodeToString(hash[:])
-}
 func DecodeToString(hash string) string {
 	decoded, err := base64.StdEncoding.DecodeString(hash)
 	if err != nil {
@@ -31,33 +22,6 @@ func DecodeToString(hash string) string {
 		return ""
 	}
 	return hex.EncodeToString(decoded)
-}
-func ToJSONString(v interface{}) (string, error) {
-	if v == nil {
-		return "", fmt.Errorf("input is nil")
-	}
-
-	jsonBytes, err := json.Marshal(v)
-	if err != nil {
-		log.Printf("Failed to marshal JSON for value: %v, error: %v", v, err)
-		return "", err
-	}
-	return string(jsonBytes), nil
-}
-func ComputeSHA256(input string) string {
-	hash := sha256.Sum256([]byte(input)) // 한번에 해시 계산
-	return hex.EncodeToString(hash[:])   // 해시를 헥스 문자열로 변환
-}
-
-func CalculateHash(block work.WorkResponse, nonce string) string {
-	blockInfo, err := ToJSONString(block)
-	if err != nil {
-		fmt.Println("Error converting block to JSON string:", err)
-		log.Panic(err)
-	}
-	combinedString := string(block.PrevHash) + blockInfo + nonce
-	sha256Hash := ComputeSHA256(combinedString)
-	return sha256Hash
 }
 
 func FindNonceByReturnForHash(nonce work.HexBytes, timestamp int64) []byte {
@@ -68,9 +32,9 @@ func FindNonceByReturnForHash(nonce work.HexBytes, timestamp int64) []byte {
 	return hash[:]
 }
 
-func CalculateHashLimit(difficulty *big.Int) (string, error) {
+func CalculateHashLimit(b *block.Block) (string, error) {
 	// 문자열을 big.Int로 변환
-	diff := difficulty
+	diff := b.Difficulty
 
 	a := new(big.Int).Exp(big.NewInt(2), big.NewInt(256), nil)
 

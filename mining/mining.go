@@ -2,6 +2,8 @@ package mining
 
 import (
 	"context"
+	"fmt"
+	"math/big"
 	"net/http"
 	"time"
 
@@ -9,6 +11,7 @@ import (
 
 	"github.com/Seoullabs-official/miner/api"
 	"github.com/Seoullabs-official/miner/api/work"
+	"github.com/Seoullabs-official/miner/block"
 	"github.com/Seoullabs-official/miner/config"
 	"github.com/Seoullabs-official/miner/core"
 	"github.com/Seoullabs-official/miner/utils"
@@ -26,7 +29,7 @@ func Start(cfg *config.Config, logger *logger.Logger) {
 
 	// /getwork 핸들러 등록
 	http.HandleFunc("/getwork", api.HandleWork())
-	logger.Info("🌐 [INFO] /getwork handler registered.")
+	logger.Info("/getwork handler registered.")
 
 	// 서버 실행
 	startServer(cfg.Port, logger)
@@ -37,42 +40,50 @@ func Start(cfg *config.Config, logger *logger.Logger) {
 
 func startServer(port string, logger *logger.Logger) {
 	go func() {
-		logger.Infof("🚀 [INFO] Starting server on port %s...", port)
+		logger.Infof("Starting server on port %s...", port)
 		if err := http.ListenAndServe(":"+port, nil); err != nil {
-			logger.Fatalf("❌ [ERROR] Server failed to start: %v", err)
+			logger.Fatalf("Server failed to start: %v", err)
 		}
 	}()
-	logger.Info("✅ [INFO] Server is running and awaiting connections.")
+	logger.Info("Server is running and awaiting connections.")
 }
 
 // processMiningWork 작업 처리
 func processMiningWork(inCommingBlock chan *work.WorkResponse, cfg *config.Config, logger *logger.Logger, loopCount *uint64, api *api.API) {
 	for {
 		select {
-		case work := <-inCommingBlock:
+		case block := <-inCommingBlock:
 			logger.Info("Received new work.")
 
-			hashLimit, err := core.CalculateHashLimit(work.Difficulty)
-			if err != nil {
-				logger.Warnf("Error calculating hash limit: %v", err)
-				continue
-			}
-			logger.Infof("Calculated hash limit: %s", hashLimit)
-
+			typeToblock := ReturnMappedBlock(block)
+			pow := work.NewProof(typeToblock)
 			ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
-			nonce, timestamp := core.StartWorkers(ctx, hashLimit, *work, loopCount, cancelFunc)
 			cancelFunc()
+
+			nonce := pow.Run(ctx, *typeToblock, loopCount, cancelFunc)
+			newHash := block.() // Assuming nonce is []byte or compatible
+
+			// typeToblock.Hash = newHash
+			// logger.Infof("Calculated hash limit: %s", hashLimit)
+
+			// nonce, timestamp := core.StartWorkers(ctx, hashLimit, *work, loopCount, cancelFunc)
+			// nonce, timestamp := pow.StartWorkers(ctx, hashLimit, *typeToblock, loopCount, cancelFunc)
 
 			if nonce == nil {
 				logger.Info("No valid hash found within the time limit. Retrying...")
 				continue
 			}
 
-			expectBlock := FindNonceReturnMappedBlock(nonce, timestamp, cfg.TargetMiner, *work)
+			expectBlock := FindNonceReturnMappedBlock(nonce, timestamp, cfg.TargetMiner, *block)
 			logger.Infof("Successfully created block: Nonce=%x, Timestamp=%d", nonce, timestamp)
-
+			// pow2 := work.NewProof2(&expectBlock)
+			// pow2.Validate()
+			if !pow.Validate() {
+				fmt.Println("검증실패 nonce")
+				return
+			}
 			// 결과 전송
-			err = api.SubmitResult(string(work.ClientAddress), &expectBlock)
+			err = api.SubmitResult(string("http://172.30.30.15:8775"), &expectBlock)
 			if err != nil {
 				logger.Errorf("Failed to submit result: %v", err)
 			} else {
@@ -82,6 +93,29 @@ func processMiningWork(inCommingBlock chan *work.WorkResponse, cfg *config.Confi
 	}
 }
 
+func ReturnMappedBlock(workResponse *work.WorkResponse) *block.Block {
+	block := &block.Block{
+		Timestamp:       workResponse.Timestamp,
+		Hash:            block.HexBytes(workResponse.Hash),
+		PrevHash:        block.HexBytes(workResponse.PrevHash),
+		MainBlockHeight: workResponse.MainBlockHeight,
+		MainBlockHash:   block.HexBytes(workResponse.MainBlockHash),
+		Nonce:           block.HexBytes(workResponse.Nonce),
+		Height:          workResponse.Height,
+		Difficulty:      new(big.Int).Set(workResponse.Difficulty),
+		Miner:           block.HexBytes(workResponse.Miner),
+		Validator:       block.HexBytes(workResponse.Validator),
+		ValidatorList:   convertHexBytesList(workResponse.ValidatorList),
+	}
+	return block
+}
+func convertHexBytesList(input []work.HexBytes) []block.HexBytes {
+	output := make([]block.HexBytes, len(input))
+	for i, v := range input {
+		output[i] = block.HexBytes(v)
+	}
+	return output
+}
 func FindNonceReturnMappedBlock(findNonce []byte, timestamp int64, targetMiner string, getWork work.WorkResponse) core.MiningResult {
 	var expectedBlockStruct core.MiningResult
 
@@ -99,12 +133,4 @@ func FindNonceReturnMappedBlock(findNonce []byte, timestamp int64, targetMiner s
 	}
 
 	return expectedBlockStruct
-}
-
-func convertToHexBytes(strings []string) []work.HexBytes {
-	hexBytesList := make([]work.HexBytes, len(strings))
-	for i, str := range strings {
-		hexBytesList[i] = work.HexBytes([]byte(str))
-	}
-	return hexBytesList
 }

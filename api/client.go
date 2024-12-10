@@ -54,7 +54,7 @@ func (api *API) HandleWork() http.HandlerFunc {
 		}
 
 		// sendUrl 값을 ClientAddress에 설정
-		workResponse.ClientAddress = work.HexBytes(payload.SendUrl)
+		// workResponse.ClientAddress = ""http://172.30.1.7:8775""
 
 		// ValidatorList 변환
 
