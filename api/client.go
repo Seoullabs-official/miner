@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/Seoullabs-official/miner/api/work"
@@ -24,36 +25,67 @@ func (api *API) HandleWork() http.HandlerFunc {
 			return
 		}
 
-		// 요청 본문 출력
-		body, _ := io.ReadAll(r.Body)
+		// 요청 본문 읽기
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			log.Printf("Failed to read request body: %v", err)
+			http.Error(w, "Failed to read request body", http.StatusInternalServerError)
+			return
+		}
 		log.Printf("Received body: %s", string(body))
 
-		// JSON 디코딩
-		var request work.WorkResponse
-		if err := json.Unmarshal(body, &request); err != nil {
+		// payload 구조체로 JSON 디코딩
+		var payload struct {
+			Data    json.RawMessage `json:"data"`
+			SendUrl string          `json:"sendUrl"`
+		}
+		if err := json.Unmarshal(body, &payload); err != nil {
 			log.Printf("Failed to decode JSON: %v", err)
 			http.Error(w, "Bad request: invalid JSON", http.StatusBadRequest)
 			return
 		}
 
-		// 작업 요청을 채널로 전달
-		api.InCommingBlock <- &request
+		// WorkResponse 생성 및 데이터 매핑
+		var workResponse work.WorkResponse
+		if err := json.Unmarshal(payload.Data, &workResponse); err != nil {
+			log.Printf("Failed to decode WorkResponse data: %v", err)
+			http.Error(w, "Bad request: invalid WorkResponse data", http.StatusBadRequest)
+			return
+		}
 
-		// 응답 반환
+		log.Printf("Received body: %s", string(body))
+		log.Printf("Payload Data: %s", string(payload.Data))
+
+		// sendUrl 값을 ClientAddress에 설정
+		workResponse.ClientAddress = work.HexBytes(payload.SendUrl)
+
+		// ValidatorList 변환
+
+		// 작업 요청을 채널로 전달
+		api.InCommingBlock <- &workResponse
+
+		// 성공 응답 반환
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("Work received"))
 	}
 }
 func (api *API) SubmitResult(domain string, miningResult *core.MiningResult) error {
+	if !strings.HasPrefix(domain, "http://") && !strings.HasPrefix(domain, "https://") {
+		domain = "http://" + domain
+	}
+
 	url := fmt.Sprintf("%s/completework", domain)
+	// log.Printf("Requesting URL: %s", url)
 	data := map[string]interface{}{
-		"nonce":     miningResult.Nonce, // HexBytes로 변환
-		"timestamp": miningResult.Timestamp,
-		"height":    miningResult.Height,
-		"blockhash": miningResult.Hash,      // HexBytes로 변환
-		"validator": miningResult.Validator, // HexBytes로 변환
-		"miner":     miningResult.Miner,     // HexBytes로 변환
-		"prevHash":  miningResult.PrevHash,
+		"nonce":         miningResult.Nonce, // HexBytes로 변환
+		"timestamp":     miningResult.Timestamp,
+		"height":        miningResult.Height,
+		"hash":          miningResult.Hash,      // HexBytes로 변환
+		"validator":     miningResult.Validator, // HexBytes로 변환
+		"miner":         miningResult.Miner,     // HexBytes로 변환
+		"prevHash":      miningResult.PrevHash,
+		"validatorList": miningResult.ValidatorList,
+		"difficulty":    miningResult.Difficulty,
 	}
 
 	jsonData, err := json.Marshal(data)

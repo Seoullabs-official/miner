@@ -2,7 +2,7 @@ package mining
 
 import (
 	"context"
-	"encoding/hex"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -56,12 +56,13 @@ func Start(cfg *config.Config) {
 				log.Println("No valid hash found within the time limit")
 				continue
 			}
+			fmt.Println(nonce, timestamp)
 
 			expectBlock := FindNonceReturnMappedBlock(nonce, timestamp, cfg.TargetMiner, *work)
-			log.Printf("result : %v\n", &expectBlock)
+			// log.Printf("result : %v\n", &expectBlock)
 
 			// // // 결과 전송
-			err = api.SubmitResult(cfg.Domain, &expectBlock)
+			err = api.SubmitResult(string(work.ClientAddress), &expectBlock)
 			if err != nil {
 				log.Printf("Failed to submit result: %v\n", err)
 			}
@@ -77,14 +78,24 @@ func FindNonceReturnMappedBlock(findNonce []byte, timestamp int64, targetMiner s
 
 	hash := core.GetHash(findNonce)
 	expectedBlockStruct = core.MiningResult{
-		Nonce:     hex.EncodeToString(findNonce),
-		Timestamp: timestamp,
-		Height:    getWork.Height + 1,
-		PrevHash:  getWork.Hash,
-		Validator: getWork.Validator,
-		Miner:     targetMiner,
-		Hash:      hex.EncodeToString(hash),
+		Nonce:         findNonce,
+		Timestamp:     timestamp,
+		PrevHash:      work.HexBytes(getWork.Hash),
+		Validator:     getWork.Validator,
+		Miner:         work.HexBytes(targetMiner),
+		Hash:          hash,
+		Difficulty:    getWork.Difficulty,
+		Height:        getWork.Height,
+		ValidatorList: getWork.ValidatorList,
 	}
 
 	return expectedBlockStruct
+}
+
+func convertToHexBytes(strings []string) []work.HexBytes {
+	hexBytesList := make([]work.HexBytes, len(strings))
+	for i, str := range strings {
+		hexBytesList[i] = work.HexBytes([]byte(str))
+	}
+	return hexBytesList
 }
