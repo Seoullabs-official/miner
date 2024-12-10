@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Seoullabs-official/miner/api/work"
@@ -71,6 +72,7 @@ func StartWorkers(ctx context.Context, hashLimit string, curBlock work.WorkRespo
 				case <-done:
 					return // 작업 완료 신호를 받으면 종료
 				default:
+
 					// 랜덤 nonce 생성 및 해시 계산
 					nonce := GenerateRandomNonce()
 					hash := CalculateHash(curBlock, nonce)
@@ -95,6 +97,8 @@ func StartWorkers(ctx context.Context, hashLimit string, curBlock work.WorkRespo
 						once.Do(func() { close(done) })
 						return
 					}
+					atomic.AddUint64(loopCount, 1)
+
 				}
 			}
 		}(i)

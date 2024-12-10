@@ -1,8 +1,9 @@
 package utils
 
 import (
-	"fmt"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 func TrackLoopRate(loopCount *uint64) {
@@ -11,6 +12,6 @@ func TrackLoopRate(loopCount *uint64) {
 		currentCount := *loopCount
 		loopsPerSecond := currentCount - prevCount
 		prevCount = currentCount
-		fmt.Printf("Loop Rate: %d loops/sec\n", loopsPerSecond)
+		logrus.Infof("Loop Rate: %d loops/sec\n", loopsPerSecond)
 	}
 }

@@ -12,6 +12,7 @@ import (
 
 	"github.com/Seoullabs-official/miner/api/work"
 	"github.com/Seoullabs-official/miner/core"
+	"github.com/sirupsen/logrus"
 )
 
 type API struct {
@@ -32,7 +33,6 @@ func (api *API) HandleWork() http.HandlerFunc {
 			http.Error(w, "Failed to read request body", http.StatusInternalServerError)
 			return
 		}
-		log.Printf("Received body: %s", string(body))
 
 		// payload 구조체로 JSON 디코딩
 		var payload struct {
@@ -53,9 +53,6 @@ func (api *API) HandleWork() http.HandlerFunc {
 			return
 		}
 
-		log.Printf("Received body: %s", string(body))
-		log.Printf("Payload Data: %s", string(payload.Data))
-
 		// sendUrl 값을 ClientAddress에 설정
 		workResponse.ClientAddress = work.HexBytes(payload.SendUrl)
 
@@ -75,7 +72,6 @@ func (api *API) SubmitResult(domain string, miningResult *core.MiningResult) err
 	}
 
 	url := fmt.Sprintf("%s/completework", domain)
-	// log.Printf("Requesting URL: %s", url)
 	data := map[string]interface{}{
 		"nonce":         miningResult.Nonce, // HexBytes로 변환
 		"timestamp":     miningResult.Timestamp,
@@ -94,12 +90,12 @@ func (api *API) SubmitResult(domain string, miningResult *core.MiningResult) err
 	}
 
 	// 디버깅: JSON 출력
-	log.Printf("Submitting JSON: %s", string(jsonData))
+	logrus.Infof("Submitting JSON: %s", string(jsonData))
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
-		log.Printf("JSON unmarshal error: %v", err) // 추가된 로그
+		logrus.Error("JSON unmarshal error: %v", err) // 추가된 로그
 
 		return fmt.Errorf("failed to send result: %w", err)
 	}
