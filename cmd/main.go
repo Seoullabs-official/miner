@@ -22,6 +22,6 @@ func main() {
 	logger.Infof("🔧 Miner is configured for target: %s", cfg.TargetMiner)
 	logger.Infof("🌐 Establishing connection to domain: %s", cfg.Domain)
 
-	// 마이닝 시작
-	mining.Start(cfg, logger)
+	// 마이닝 초기 셋팅
+	mining.Initialize(cfg, logger)
 }

@@ -14,7 +14,7 @@ import (
 	"github.com/Seoullabs-official/miner/work"
 )
 
-func Start(cfg *config.Config, logger *logger.Logger) {
+func Initialize(cfg *config.Config, logger *logger.Logger) {
 	var loopCount uint64
 
 	// 작업 채널 초기화
@@ -24,11 +24,10 @@ func Start(cfg *config.Config, logger *logger.Logger) {
 
 	go utils.TrackLoopRate(&loopCount, logger)
 
-	processMiningWork(inCommingBlock, cfg, logger, &loopCount, api)
+	miningRun(inCommingBlock, cfg, logger, &loopCount, api)
 }
 
-// processMiningWork 작업 처리
-func processMiningWork(inCommingBlock chan *block.Block, cfg *config.Config, logger *logger.Logger, loopCount *uint64, api *api.API) {
+func miningRun(inCommingBlock chan *block.Block, cfg *config.Config, logger *logger.Logger, loopCount *uint64, api *api.API) {
 	for {
 		select {
 		case block := <-inCommingBlock:
