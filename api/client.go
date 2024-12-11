@@ -10,13 +10,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Seoullabs-official/miner/api/work"
-	"github.com/Seoullabs-official/miner/core"
+	"github.com/Seoullabs-official/miner/block"
 	"github.com/sirupsen/logrus"
 )
 
 type API struct {
-	InCommingBlock chan *work.WorkResponse // 공개 필드로 변경
+	InCommingBlock chan *block.Block // 공개 필드로 변경
+	SendUrl        string
 }
 
 func (api *API) HandleWork() http.HandlerFunc {
@@ -46,7 +46,7 @@ func (api *API) HandleWork() http.HandlerFunc {
 		}
 
 		// WorkResponse 생성 및 데이터 매핑
-		var workResponse work.WorkResponse
+		var workResponse block.Block
 		if err := json.Unmarshal(payload.Data, &workResponse); err != nil {
 			log.Printf("Failed to decode WorkResponse data: %v", err)
 			http.Error(w, "Bad request: invalid WorkResponse data", http.StatusBadRequest)
@@ -66,7 +66,7 @@ func (api *API) HandleWork() http.HandlerFunc {
 		w.Write([]byte("Work received"))
 	}
 }
-func (api *API) SubmitResult(domain string, miningResult *core.MiningResult) error {
+func (api *API) SubmitResult(domain string, miningResult *block.Block) error {
 	if !strings.HasPrefix(domain, "http://") && !strings.HasPrefix(domain, "https://") {
 		domain = "http://" + domain
 	}

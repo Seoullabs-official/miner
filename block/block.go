@@ -7,6 +7,8 @@ import (
 	"math/big"
 )
 
+type HexBytes []byte
+
 type Block struct {
 	Timestamp       int64
 	Hash            HexBytes
@@ -20,7 +22,6 @@ type Block struct {
 	Validator       HexBytes
 	ValidatorList   []HexBytes
 }
-type HexBytes []byte
 
 func (h HexBytes) String() string {
 	return string(h) // UTF-8 문자열로 변환

@@ -2,7 +2,6 @@ package mining
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 	"net/http"
 	"time"
@@ -13,7 +12,6 @@ import (
 	"github.com/Seoullabs-official/miner/api/work"
 	"github.com/Seoullabs-official/miner/block"
 	"github.com/Seoullabs-official/miner/config"
-	"github.com/Seoullabs-official/miner/core"
 	"github.com/Seoullabs-official/miner/utils"
 )
 
@@ -21,8 +19,8 @@ func Start(cfg *config.Config, logger *logger.Logger) {
 	var loopCount uint64
 
 	// 작업 채널 초기화
-	inCommingBlock := make(chan *work.WorkResponse)
-	api := &api.API{InCommingBlock: inCommingBlock}
+	inCommingBlock := make(chan *block.Block)
+	api := &api.API{InCommingBlock: inCommingBlock, SendUrl: ""}
 
 	// 루프 속도 추적
 	go utils.TrackLoopRate(&loopCount, logger)
@@ -41,7 +39,7 @@ func Start(cfg *config.Config, logger *logger.Logger) {
 func startServer(port string, logger *logger.Logger) {
 	go func() {
 		logger.Infof("Starting server on port %s...", port)
-		if err := http.ListenAndServe(":"+port, nil); err != nil {
+		if err := http.ListenAndServe("0.0.0.0:7822", nil); err != nil {
 			logger.Fatalf("Server failed to start: %v", err)
 		}
 	}()
@@ -49,7 +47,7 @@ func startServer(port string, logger *logger.Logger) {
 }
 
 // processMiningWork 작업 처리
-func processMiningWork(inCommingBlock chan *work.WorkResponse, cfg *config.Config, logger *logger.Logger, loopCount *uint64, api *api.API) {
+func processMiningWork(inCommingBlock chan *block.Block, cfg *config.Config, logger *logger.Logger, loopCount *uint64, api *api.API) {
 	for {
 		select {
 		case block := <-inCommingBlock:
@@ -60,77 +58,55 @@ func processMiningWork(inCommingBlock chan *work.WorkResponse, cfg *config.Confi
 			ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
 			cancelFunc()
 
-			nonce := pow.Run(ctx, *typeToblock, loopCount, cancelFunc)
-			newHash := block.() // Assuming nonce is []byte or compatible
-
-			// typeToblock.Hash = newHash
-			// logger.Infof("Calculated hash limit: %s", hashLimit)
-
-			// nonce, timestamp := core.StartWorkers(ctx, hashLimit, *work, loopCount, cancelFunc)
-			// nonce, timestamp := pow.StartWorkers(ctx, hashLimit, *typeToblock, loopCount, cancelFunc)
-
+			nonce := pow.Run(ctx, *typeToblock, loopCount, cancelFunc) //nonce
 			if nonce == nil {
 				logger.Info("No valid hash found within the time limit. Retrying...")
 				continue
-			}
-
-			expectBlock := FindNonceReturnMappedBlock(nonce, timestamp, cfg.TargetMiner, *block)
-			logger.Infof("Successfully created block: Nonce=%x, Timestamp=%d", nonce, timestamp)
-			// pow2 := work.NewProof2(&expectBlock)
-			// pow2.Validate()
-			if !pow.Validate() {
-				fmt.Println("검증실패 nonce")
-				return
-			}
-			// 결과 전송
-			err = api.SubmitResult(string("http://172.30.30.15:8775"), &expectBlock)
-			if err != nil {
-				logger.Errorf("Failed to submit result: %v", err)
 			} else {
-				logger.Info("Result submitted successfully.")
+				pow.Block.Nonce = nonce
+				hash := pow.FindNonceByReturnForHash()
+
+				expectBlock := FindNonceReturnMappedBlock(pow.Block.Nonce, pow.Block.Timestamp, cfg.TargetMiner, *typeToblock, hash)
+				logger.Infof("Successfully created block: hash =%x ,Nonce=%x, Timestamp=%d", hash, pow.Block.Nonce, pow.Block.Timestamp)
+
+				err := api.SubmitResult(string("http://172.30.1.7:8775"), &expectBlock)
+				if err != nil {
+					logger.Errorf("Failed to submit result: %v", err)
+				} else {
+					logger.Info("Result submitted successfully.")
+				}
 			}
 		}
 	}
 }
 
-func ReturnMappedBlock(workResponse *work.WorkResponse) *block.Block {
+func ReturnMappedBlock(workResponse *block.Block) *block.Block {
 	block := &block.Block{
-		Timestamp:       workResponse.Timestamp,
-		Hash:            block.HexBytes(workResponse.Hash),
-		PrevHash:        block.HexBytes(workResponse.PrevHash),
-		MainBlockHeight: workResponse.MainBlockHeight,
-		MainBlockHash:   block.HexBytes(workResponse.MainBlockHash),
-		Nonce:           block.HexBytes(workResponse.Nonce),
-		Height:          workResponse.Height,
-		Difficulty:      new(big.Int).Set(workResponse.Difficulty),
-		Miner:           block.HexBytes(workResponse.Miner),
-		Validator:       block.HexBytes(workResponse.Validator),
-		ValidatorList:   convertHexBytesList(workResponse.ValidatorList),
+		Timestamp:     workResponse.Timestamp,
+		Hash:          block.HexBytes(workResponse.Hash),
+		PrevHash:      block.HexBytes(workResponse.PrevHash),
+		Nonce:         block.HexBytes(workResponse.Nonce),
+		Height:        workResponse.Height,
+		Difficulty:    new(big.Int).Set(workResponse.Difficulty),
+		Miner:         block.HexBytes(workResponse.Miner),
+		Validator:     block.HexBytes(workResponse.Validator),
+		ValidatorList: convertHexBytesList(workResponse.ValidatorList),
 	}
 	return block
 }
-func convertHexBytesList(input []work.HexBytes) []block.HexBytes {
+
+func convertHexBytesList(input []block.HexBytes) []block.HexBytes {
 	output := make([]block.HexBytes, len(input))
 	for i, v := range input {
 		output[i] = block.HexBytes(v)
 	}
 	return output
 }
-func FindNonceReturnMappedBlock(findNonce []byte, timestamp int64, targetMiner string, getWork work.WorkResponse) core.MiningResult {
-	var expectedBlockStruct core.MiningResult
+func FindNonceReturnMappedBlock(findNonce []byte, timestamp int64, targetMiner string, getWork block.Block, hash []byte) block.Block {
+	getWork.Hash = hash
+	getWork.Timestamp = timestamp
+	getWork.Nonce = findNonce
+	getWork.Miner = block.HexBytes(targetMiner)
 
-	hash := core.GetHash(findNonce)
-	expectedBlockStruct = core.MiningResult{
-		Nonce:         findNonce,
-		Timestamp:     timestamp,
-		PrevHash:      work.HexBytes(getWork.Hash),
-		Validator:     getWork.Validator,
-		Miner:         work.HexBytes(targetMiner),
-		Hash:          hash,
-		Difficulty:    getWork.Difficulty,
-		Height:        getWork.Height,
-		ValidatorList: getWork.ValidatorList,
-	}
-
-	return expectedBlockStruct
+	return getWork
 }

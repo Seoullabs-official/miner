@@ -1,17 +1,17 @@
-package core
+package work
 
 import (
 	"bytes"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log"
 	"math/big"
-	"time"
 
-	"github.com/Seoullabs-official/miner/api/work"
 	"github.com/Seoullabs-official/miner/block"
 )
 
@@ -22,14 +22,6 @@ func DecodeToString(hash string) string {
 		return ""
 	}
 	return hex.EncodeToString(decoded)
-}
-
-func FindNonceByReturnForHash(nonce work.HexBytes, timestamp int64) []byte {
-
-	data := InitData(nonce, timestamp)
-	hash := sha256.Sum256(data)
-
-	return hash[:]
 }
 
 func CalculateHashLimit(b *block.Block) (string, error) {
@@ -49,21 +41,6 @@ func CalculateHashLimit(b *block.Block) (string, error) {
 
 	return paddedHexResult, nil
 }
-func InitData(nonce []byte, timestamp int64) []byte {
-
-	data := bytes.Join(
-		[][]byte{
-			ToHex(timestamp),
-			nonce},
-		[]byte{},
-	)
-	return data
-}
-func GetHash(nonce work.HexBytes) []byte {
-	data := InitData(nonce, time.Now().Unix()) // timestamp hashlimit겨ㄹ과 받을때의 기준으로 표시해서 넣어주기 지금은 임시
-	hash := sha256.Sum256(data)
-	return hash[:]
-}
 func ToHex(num int64) []byte {
 	buff := new(bytes.Buffer)
 	err := binary.Write(buff, binary.BigEndian, num)
@@ -72,4 +49,39 @@ func ToHex(num int64) []byte {
 	}
 
 	return buff.Bytes()
+}
+func isHexString(s string) bool {
+	if len(s)%2 != 0 {
+		return false
+	}
+	for _, r := range s {
+		if (r < '0' || r > '9') && (r < 'a' || r > 'f') && (r < 'A' || r > 'F') {
+			return false
+		}
+	}
+	return true
+}
+func GenerateRandomNonce() string {
+	randomBytes := make([]byte, 8)
+	rand.Read(randomBytes)
+
+	// SHA-256 해시를 계산
+	hash := sha256.Sum256(randomBytes)
+	return hex.EncodeToString(hash[:])
+}
+func ComputeSHA256(input string) string {
+	hash := sha256.Sum256([]byte(input)) // 한번에 해시 계산
+	return hex.EncodeToString(hash[:])   // 해시를 헥스 문자열로 변환
+}
+func ToJSONString(v interface{}) (string, error) {
+	if v == nil {
+		return "", fmt.Errorf("input is nil")
+	}
+
+	jsonBytes, err := json.Marshal(v)
+	if err != nil {
+		log.Printf("Failed to marshal JSON for value: %v, error: %v", v, err)
+		return "", err
+	}
+	return string(jsonBytes), nil
 }
