@@ -2,6 +2,7 @@ package mining
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"time"
 
@@ -50,12 +51,8 @@ func miningRun(inCommingBlock chan *block.Block, cfg *config.Config, logger *log
 				logger.Infof("Successfully created block: hash =%x ,Nonce=%x, Timestamp=%d", hash, pow.Block.Nonce, pow.Block.Timestamp)
 
 				// http://172.30.1.7:8775
-				err := api.SubmitResult(api.SendUrl, &expectBlock)
-				if err != nil {
-					logger.Errorf("Failed to submit result: %v", err)
-				} else {
-					logger.Info("Result submitted successfully.")
-				}
+				fmt.Println(api.SendUrl)
+				api.SubmitResult(api.SendUrl, &expectBlock)
 			}
 		}
 	}

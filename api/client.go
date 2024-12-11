@@ -84,7 +84,7 @@ func (api *API) HandleWork() http.HandlerFunc {
 		w.Write([]byte("Work received"))
 	}
 }
-func (api *API) SubmitResult(domain string, miningResult *block.Block) error {
+func (api *API) SubmitResult(domain string, miningResult *block.Block) {
 	if !strings.HasPrefix(domain, "http://") && !strings.HasPrefix(domain, "https://") {
 		domain = "http://" + domain
 	}
@@ -104,26 +104,23 @@ func (api *API) SubmitResult(domain string, miningResult *block.Block) error {
 
 	jsonData, err := json.Marshal(data)
 	if err != nil {
-		return fmt.Errorf("failed to marshal JSON: %w", err)
+		api.Logger.Errorf("Failed to marshal JSON: %v", err)
+		return
 	}
-
-	// 디버깅: JSON 출력
-	logrus.Infof("Submitting JSON: %s", string(jsonData))
-
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		logrus.Error("JSON unmarshal error: %v", err) // 추가된 로그
-
-		return fmt.Errorf("failed to send result: %w", err)
+		api.Logger.Errorf("failed to send result: %w", err)
+		return
 	}
 	defer resp.Body.Close()
 
 	// 서버 응답 디버깅
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("server returned non-OK status: %d, response: %s", resp.StatusCode, string(body))
+		api.Logger.Errorf("server returned non-OK status: %d, response: %s", resp.StatusCode, string(body))
+		return
 	}
-
-	return nil
+	logrus.Infof("Successfully Result JSON: %s", string(jsonData))
 }

@@ -58,8 +58,6 @@ func (h *HexBytes) UnmarshalJSON(data []byte) error {
 	*h = bytes
 	return nil
 }
-
-// 헬퍼 함수: 문자열이 유효한 16진수인지 검사
 func isHexString(s string) bool {
 	for _, r := range s {
 		if (r < '0' || r > '9') && (r < 'a' || r > 'f') && (r < 'A' || r > 'F') {
