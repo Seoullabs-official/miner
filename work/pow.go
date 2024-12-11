@@ -92,7 +92,7 @@ func (p *ProofOfWork) InitData(nonce []byte) []byte {
 
 	data := bytes.Join(
 		[][]byte{
-			ToHex(time.Now().Unix()),
+			ToHex(p.Block.Timestamp),
 			nonce},
 		[]byte{},
 	)

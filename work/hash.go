@@ -64,7 +64,6 @@ func isHexString(s string) bool {
 func GenerateRandomNonce() string {
 	randomBytes := make([]byte, 8)
 	rand.Read(randomBytes)
-
 	// SHA-256 해시를 계산
 	hash := sha256.Sum256(randomBytes)
 	return hex.EncodeToString(hash[:])
