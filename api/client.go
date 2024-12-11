@@ -57,6 +57,7 @@ func (api *API) HandleWork() http.HandlerFunc {
 		// workResponse.ClientAddress = ""http://172.30.1.7:8775""
 
 		// ValidatorList 변환
+		api.SendUrl = payload.SendUrl
 
 		// 작업 요청을 채널로 전달
 		api.InCommingBlock <- &workResponse

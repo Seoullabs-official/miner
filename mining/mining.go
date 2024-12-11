@@ -69,7 +69,8 @@ func processMiningWork(inCommingBlock chan *block.Block, cfg *config.Config, log
 				expectBlock := FindNonceReturnMappedBlock(pow.Block.Nonce, pow.Block.Timestamp, cfg.TargetMiner, *typeToblock, hash)
 				logger.Infof("Successfully created block: hash =%x ,Nonce=%x, Timestamp=%d", hash, pow.Block.Nonce, pow.Block.Timestamp)
 
-				err := api.SubmitResult(string("http://172.30.1.7:8775"), &expectBlock)
+				// http://172.30.1.7:8775
+				err := api.SubmitResult(api.SendUrl, &expectBlock)
 				if err != nil {
 					logger.Errorf("Failed to submit result: %v", err)
 				} else {
