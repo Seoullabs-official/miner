@@ -12,11 +12,35 @@ import (
 
 	"github.com/Seoullabs-official/miner/block"
 	"github.com/sirupsen/logrus"
+	logger "github.com/sirupsen/logrus"
 )
 
+// API 구조체 정의
 type API struct {
-	InCommingBlock chan *block.Block // 공개 필드로 변경
+	InCommingBlock chan *block.Block
 	SendUrl        string
+	Logger         *logger.Logger
+}
+
+// API 생성 함수
+func NewAPI(inCommingBlock chan *block.Block, logger *logger.Logger) *API {
+	return &API{
+		InCommingBlock: inCommingBlock,
+		SendUrl:        "",
+		Logger:         logger,
+	}
+}
+func (api *API) StartServer(port string) {
+	http.HandleFunc("/getwork", api.HandleWork())
+	api.Logger.Infof("/getwork handler registered.")
+
+	go func() {
+		api.Logger.Infof("Starting server on port %s...", port)
+		if err := http.ListenAndServe("0.0.0.0:"+port, nil); err != nil {
+			api.Logger.Fatalf("Server failed to start: %v", err)
+		}
+	}()
+	api.Logger.Info("Server is running and awaiting connections.")
 }
 
 func (api *API) HandleWork() http.HandlerFunc {
@@ -52,16 +76,9 @@ func (api *API) HandleWork() http.HandlerFunc {
 			http.Error(w, "Bad request: invalid WorkResponse data", http.StatusBadRequest)
 			return
 		}
-
-		// sendUrl 값을 ClientAddress에 설정
-		// workResponse.ClientAddress = ""http://172.30.1.7:8775""
-
-		// ValidatorList 변환
 		api.SendUrl = payload.SendUrl
-
 		// 작업 요청을 채널로 전달
 		api.InCommingBlock <- &workResponse
-
 		// 성공 응답 반환
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("Work received"))
